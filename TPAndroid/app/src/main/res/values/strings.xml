@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">TPAndroid</string>
+    <string name="house">Voir ma maison</string>
+    <string name="welcome">Bienvenue !</string>
+</resources>

@@ -1,0 +1,11 @@
+services:
+  debian-gui:
+    image: debian-custom
+    container_name: debian-gui
+    environment:
+      - DISPLAY=${DISPLAY}
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ./Debian12.vdi:/home/Debian12.vdi
+    stdin_open: true
+    tty: true
