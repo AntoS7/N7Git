@@ -24,17 +24,29 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             return insets;
         });
 
-        Button btn = (Button) findViewById(R.id.BT);
-        btn.setOnClickListener(this);
+        //Boutton de lancement du client
+        Button btn_cli = (Button) findViewById(R.id.BT_S_C);
+        btn_cli.setOnClickListener(this);
+
+        //Boutton de lancement du serveur
+        Button btn_serv = (Button) findViewById(R.id.BT_S_S);
+        btn_serv.setOnClickListener(this);
     }
 
     @Override
     public void onClick(View v) {
-        if (v.getId()==R.id.BT) {
-            Button btn = (Button) findViewById(R.id.BT);
-            btn.setText("Ready !");
+        if (v.getId()==R.id.BT_S_C) {
+            Button btn = (Button) findViewById(R.id.BT_S_C);
+            btn.setText("Lancement du client !");
             Intent playIntent = new Intent(this, SmartHouse.class);
             startActivity(playIntent);
         }
+        if (v.getId()==R.id.BT_S_S) {
+            Button btn = (Button) findViewById(R.id.BT_S_C);
+            btn.setText("Lancement du serveur !");
+            Intent playIntent = new Intent(this, WaitLinkServer.class);
+            startActivity(playIntent);
+        }
+
     }
 }

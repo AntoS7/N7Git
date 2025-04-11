@@ -13,15 +13,18 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
+import com.android.volley.*;
+import com.android.volley.toolbox.Volley;
+
+
+import org.json.JSONObject;
+
 public class SmartHouse extends AppCompatActivity {
 
     private LinearLayout myLayout = (LinearLayout) findViewById(R.id.ll);
-    private LinearLayout devicesLayout;
-    private RequestQueue queue;
-    private Runnable refreshRunnable;
 
     private final String BASE_URL = "http://happyresto.enseeiht.fr/smartHouse/api/v1/";
-    private final String HOUSE_ID = "votre_id_maison"; // Remplacer par ton ID
+    private final String HOUSE_ID = "32";
 
     protected View createDeviceView(String name, String data, Boolean state){
         RelativeLayout layout = new RelativeLayout ( this ) ;
@@ -75,11 +78,30 @@ public class SmartHouse extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_devices);
+        setContentView(R.layout.activity_smart_house);
 
-        devicesLayout = findViewById(R.id.devicesLayout);
-        queue = Volley.newRequestQueue(this);
-
+        RequestQueue queue = Volley.newRequestQueue(this);
+        JSONObjectRequest jsonObjectRequest = new JsonObjectRequest
+                    (Request.Method.GET, BASE_URL , null ,
+                            requestSuccessListener() , requestErrorListener( ) ) ;
+            queue.add(jsonObjectRequest) ;
+        }
+        private Response.Listener <JSONObject> requestSuccessListener() {
+            return new Response.Listener <JSONObject >() {
+                @Override
+                public void onResponse (JSONObject response) {
+                    Log.d(TAG,response.toString());
+                }
+            } ;
+        }
+        private Response.ErrorListener volleyErrorListener(){
+            return new Response.ErrorListener(){
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    Log.e(TAG,error.getMessage());
+                }
+            } ;
+        }
 
         /*setContentView(R.layout.activity_smart_house);
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.house), (v, insets) -> {
