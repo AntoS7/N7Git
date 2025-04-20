@@ -5,6 +5,7 @@ import static android.content.ContentValues.TAG;
 import android.Manifest;
 import android.bluetooth.*;
 import android.content.pm.PackageManager;
+import android.os.Handler;
 import android.util.Log;
 
 import androidx.annotation.RequiresPermission;
@@ -16,6 +17,24 @@ import java.util.UUID;
 public class AcceptThread extends Thread {
     private final BluetoothServerSocket mmServerSocket;
 
+    private MyBluetoothService.ConnectedThread connectedThread;
+
+    private final Handler handler = new Handler(msg -> {
+        switch (msg.what) {
+            case 0: // MESSAGE_READ
+                byte[] readBuf = (byte[]) msg.obj;
+                String receivedMessage = new String(readBuf, 0, msg.arg1);
+                // Met à jour l'UI ou traite le message
+                break;
+            case 1: // MESSAGE_WRITE
+                // Message écrit
+                break;
+            case 2: // MESSAGE_TOAST
+                // Affiche un toast d'erreur
+                break;
+        }
+        return true;
+    });
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     public AcceptThread(String serv_name, UUID uuid) {
         // Use a temporary object that is later assigned to mmServerSocket
@@ -42,13 +61,19 @@ public class AcceptThread extends Thread {
                 break;
             }
 
-            /*if (socket != null) {
+            if (socket != null) {
                 // A connection was accepted. Perform work associated with
                 // the connection in a separate thread.
-                manageMyConnectedSocket(socket);
-                mmServerSocket.close();
+                connectedThread = new MyBluetoothService().new ConnectedThread(socket);
+                // TODO: Ajouter un mécanisme pour transmettre le handler à ConnectedThread si nécessaire
+                connectedThread.start();
+                try {
+                    mmServerSocket.close();
+                } catch (IOException e) {
+                    Log.e(TAG, "Could not close the connect socket", e);
+                }
                 break;
-            }*/
+            }
         }
     }
 
