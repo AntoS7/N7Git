@@ -1,5 +1,7 @@
 package com.example.tpandroid;
 
+import static android.content.ContentValues.TAG;
+
 import android.Manifest;
 import android.bluetooth.*;
 import android.content.pm.PackageManager;
@@ -21,7 +23,7 @@ public class AcceptThread extends Thread {
         BluetoothServerSocket tmp = null;
         try {
             // MY_UUID is the app's UUID string, also used by the client code.
-            BluetoothAdapter bluetoothAdapter;
+            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();;
             tmp = bluetoothAdapter.listenUsingRfcommWithServiceRecord(serv_name, uuid);
         } catch (IOException e) {
             Log.e(TAG, "Socket's listen() method failed", e);

@@ -28,7 +28,7 @@ public class WaitLinkServer extends AppCompatActivity {
         });
 
         //Lancement de la connexion bluetooth
-        AcceptThread =
+        //AcceptThread =
     }
 
 
