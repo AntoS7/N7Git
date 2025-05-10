@@ -35,6 +35,7 @@ android {
 }
 
 dependencies {
+    implementation("com.google.accompanist:accompanist-permissions:0.35.0-alpha")
     implementation("com.android.volley:volley:1.2.1")
     implementation(libs.appcompat)
     implementation(libs.material)

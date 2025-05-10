@@ -4,6 +4,7 @@ import static android.content.ContentValues.TAG;
 
 import android.Manifest;
 import android.bluetooth.*;
+import android.bluetooth.BluetoothAdapter;
 import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.util.Log;
@@ -19,30 +20,18 @@ public class AcceptThread extends Thread {
 
     private MyBluetoothService.ConnectedThread connectedThread;
 
-    private final Handler handler = new Handler(msg -> {
-        switch (msg.what) {
-            case 0: // MESSAGE_READ
-                byte[] readBuf = (byte[]) msg.obj;
-                String receivedMessage = new String(readBuf, 0, msg.arg1);
-                // Met à jour l'UI ou traite le message
-                break;
-            case 1: // MESSAGE_WRITE
-                // Message écrit
-                break;
-            case 2: // MESSAGE_TOAST
-                // Affiche un toast d'erreur
-                break;
-        }
-        return true;
-    });
+    private final BluetoothAdapter bluetoothAdapter;
+    private final Handler handler;
+
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
-    public AcceptThread(String serv_name, UUID uuid) {
+    public AcceptThread(BluetoothAdapter bluetoothAdapter, String serv_name, UUID uuid, Handler handler) {
+        this.bluetoothAdapter = bluetoothAdapter;
+        this.handler = handler;
         // Use a temporary object that is later assigned to mmServerSocket
         // because mmServerSocket is final.
         BluetoothServerSocket tmp = null;
         try {
             // MY_UUID is the app's UUID string, also used by the client code.
-            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();;
             tmp = bluetoothAdapter.listenUsingRfcommWithServiceRecord(serv_name, uuid);
         } catch (IOException e) {
             Log.e(TAG, "Socket's listen() method failed", e);
