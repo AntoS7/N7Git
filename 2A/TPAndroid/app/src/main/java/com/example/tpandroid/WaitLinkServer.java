@@ -3,6 +3,7 @@ package com.example.tpandroid;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.*;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -26,25 +27,34 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.UUID;
 
+// Nouveaux imports pour la récupération des appareils appairés
+import java.util.Set;
+import android.bluetooth.BluetoothDevice;
+
 import android.util.Log;
+import android.content.Context;
+import android.content.IntentFilter;
+import android.content.BroadcastReceiver;
 
 public class WaitLinkServer extends AppCompatActivity {
 
     private UUID mon_UUID = UUID.fromString("8e9246e1-fb3d-4f68-bd2b-5e1e21bcb4b6");
-
     private String nom_serv = "MonServeur";
-
     private AcceptThread acceptThread;
-
+    // Handler partagé pour les threads de communication
+    private Handler handler;
     private BluetoothAdapter bluetoothAdapter;
 
     private static final String TAG = "MY_APP_DEBUG_TAG";
-
+    private static final int REQUEST_ENABLE_BT = 1;
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // Enregistrement du BroadcastReceiver pour ACTION_FOUND
+        IntentFilter filter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+        registerReceiver(receiver, filter);
         Log.d(TAG, "onCreate: called");
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_wait_link_server);
@@ -54,18 +64,36 @@ public class WaitLinkServer extends AppCompatActivity {
             return insets;
         });
 
-
-        bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-        Log.d(TAG, "onCreate: BluetoothAdapter = " + bluetoothAdapter
-                + ", enabled? " + (bluetoothAdapter != null && bluetoothAdapter.isEnabled()));
-        if (bluetoothAdapter == null || !bluetoothAdapter.isEnabled()) {
-            Toast.makeText(this, "Please enable Bluetooth", Toast.LENGTH_SHORT).show();
+        // Initialisation Bluetooth via BluetoothManager
+        BluetoothManager bluetoothManager = getSystemService(BluetoothManager.class);
+        BluetoothAdapter adapter = bluetoothManager.getAdapter();
+        if (adapter == null) {
+            Toast.makeText(this, "Device doesn't support Bluetooth", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
+        this.bluetoothAdapter = adapter;
+        Log.d(TAG, "onCreate: BluetoothAdapter = " + adapter
+                + ", enabled? " + adapter.isEnabled());
 
-        // --- Create a Handler to process messages from AcceptThread ---
-        Handler handler = new Handler(Looper.getMainLooper(), msg -> {
+        // Demande d'activation si nécessaire
+        if (!adapter.isEnabled()) {
+            Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
+        }
+
+        // --- Récupération des appareils déjà appairés ---
+        Set<BluetoothDevice> pairedDevices = bluetoothAdapter.getBondedDevices();
+        if (!pairedDevices.isEmpty()) {
+            for (BluetoothDevice device : pairedDevices) {
+                String deviceName = device.getName();
+                String deviceAddress = device.getAddress();  // adresse MAC
+                Log.d(TAG, "Appareil appairé: " + deviceName + " [" + deviceAddress + "]");
+            }
+        }
+
+        // --- Création du Handler pour AcceptThread ---
+        handler = new Handler(Looper.getMainLooper(), msg -> {
             switch (msg.what) {
                 case MessageConstants.MESSAGE_READ:
                     byte[] buf = (byte[]) msg.obj;
@@ -76,7 +104,6 @@ public class WaitLinkServer extends AppCompatActivity {
                     Toast.makeText(this, msg.getData().getString("toast"),
                             Toast.LENGTH_SHORT).show();
                     break;
-                // add MESSAGE_WRITE, etc. here...
             }
             return true;
         });
@@ -89,7 +116,27 @@ public class WaitLinkServer extends AppCompatActivity {
         );
         Log.d(TAG, "onCreate: Starting AcceptThread (service=" + nom_serv + ", uuid=" + mon_UUID + ")");
         acceptThread.start();
+    }
 
+    // BroadcastReceiver pour découvrir de nouveaux appareils
+    private final BroadcastReceiver receiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                String deviceName = device.getName();
+                String deviceHardwareAddress = device.getAddress(); // adresse MAC
+                Log.d(TAG, "Found device: " + deviceName + " [" + deviceHardwareAddress + "]");
+            }
+        }
+    };
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Désenregistrement du BroadcastReceiver
+        unregisterReceiver(receiver);
     }
 
     private class AcceptThread extends Thread {
@@ -132,9 +179,14 @@ public class WaitLinkServer extends AppCompatActivity {
                 }
 
                 if (socket != null) {
+                    // Log details about the remote device
+                    BluetoothDevice remoteDevice = socket.getRemoteDevice();
+                    Log.d(TAG, "Connection established with device: "
+                            + remoteDevice.getName() + " [" + remoteDevice.getAddress() + "]");
                     // A connection was accepted. Perform work associated with
                     // the connection in a separate thread.
-                    //manageMyConnectedSocket(socket);
+                    manageMyConnectedSocket(socket);
+
                     Log.d(TAG, "AcceptThread run: connection accepted, closing server socket");
                     try {
                         mmServerSocket.close();
@@ -160,7 +212,7 @@ public class WaitLinkServer extends AppCompatActivity {
      * Here you’d spin off a thread to do the actual read/write.
      */
     private void manageMyConnectedSocket(BluetoothSocket socket) {
-        //new ConnectedThread(socket, msg -> handler.sendMessage(msg)).start();
+        new ConnectedThread(socket, handler).start();
     }
 
     private static class ConnectedThread extends Thread {
@@ -170,13 +222,13 @@ public class WaitLinkServer extends AppCompatActivity {
         private byte[] mmBuffer; // mmBuffer store for the stream
         private Handler handler;
 
-        public ConnectedThread(BluetoothSocket socket) {
-            mmSocket = socket;
+        public ConnectedThread(BluetoothSocket socket, Handler handler) {
+            this.mmSocket = socket;
+            this.handler = handler;
             InputStream tmpIn = null;
             OutputStream tmpOut = null;
 
-            // Get the input and output streams; using temp objects because
-            // member streams are final.
+            // Initialize streams
             try {
                 tmpIn = socket.getInputStream();
             } catch (IOException e) {
@@ -188,8 +240,8 @@ public class WaitLinkServer extends AppCompatActivity {
                 Log.e(TAG, "Error occurred when creating output stream", e);
             }
 
-            mmInStream = tmpIn;
-            mmOutStream = tmpOut;
+            this.mmInStream = tmpIn;
+            this.mmOutStream = tmpOut;
             Log.d(TAG, "ConnectedThread: input and output streams initialized");
         }
 

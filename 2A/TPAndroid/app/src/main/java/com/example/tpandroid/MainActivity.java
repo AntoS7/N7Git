@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
         if (v.getId()==R.id.BT_S_S) {
             Button btn = (Button) findViewById(R.id.BT_S_C);
-            btn.setText("Serveur en attente");
+            btn.setText("Lancement du client");
             Intent playIntent = new Intent(this, WaitLinkServer.class);
             startActivity(playIntent);
         }
