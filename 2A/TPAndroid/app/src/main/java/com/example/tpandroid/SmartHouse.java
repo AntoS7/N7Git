@@ -26,6 +26,11 @@ import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 
+import com.example.tpandroid.BluetoothService;
+import android.content.ComponentName;
+import android.content.ServiceConnection;
+import android.os.IBinder;
+import java.nio.charset.StandardCharsets;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -44,6 +49,18 @@ public class SmartHouse extends AppCompatActivity {
 
     private Handler handler;
     private Runnable runnableCode;
+
+    private BluetoothService btService;
+    private final ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder binder) {
+            btService = ((BluetoothService.LocalBinder)binder).getService();
+        }
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            btService = null;
+        }
+    };
 
     protected View createDeviceView(String id, String brand, String name, String autonomy, String data, Boolean state){
         RelativeLayout layout = new RelativeLayout ( this ) ;
@@ -120,6 +137,12 @@ public class SmartHouse extends AppCompatActivity {
                         return params;
                     }
                 };
+                queue.add(postRequest);
+                // Also send the same command over Bluetooth
+                if (btService != null) {
+                    String msg = String.format("{\"deviceId\":\"%s\",\"houseId\":\"%s\",\"action\":\"turnOnOff\"}", id, HOUSE_ID);
+                    btService.write(msg.getBytes(StandardCharsets.UTF_8));
+                }
             }
         });
         if (state) {
@@ -137,6 +160,9 @@ public class SmartHouse extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_smart_house);
+        // Bind to BluetoothService to reuse the socket
+        Intent svcIntent = new Intent(this, BluetoothService.class);
+        bindService(svcIntent, serviceConnection, BIND_AUTO_CREATE);
         myLayout = (LinearLayout) findViewById(R.id.ll);
 
         handler = new Handler();
@@ -176,6 +202,10 @@ public class SmartHouse extends AppCompatActivity {
                         View deviceView = createDeviceView(id, brand, name, autonomy, data, state);
                         myLayout.addView(deviceView);
                     }
+                    // Send the full JSON array over Bluetooth to the connected device
+                    if (btService != null) {
+                        btService.write(response.toString().getBytes(StandardCharsets.UTF_8));
+                    }
                 } catch (JSONException e) {
                     Log.e(TAG, "Erreur de parsing JSON", e);
                 }
@@ -205,6 +235,14 @@ public class SmartHouse extends AppCompatActivity {
         if (handler != null && runnableCode != null) {
             handler.postDelayed(runnableCode, 0);
             Log.d(TAG, "Tâches périodiques relancées dans onResume");
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (btService != null) {
+            unbindService(serviceConnection);
         }
     }
 }
