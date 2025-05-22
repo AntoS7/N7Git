@@ -16,6 +16,8 @@ import androidx.annotation.RequiresPermission;
 import java.util.UUID;
 
 public class BluetoothService extends Service {
+
+    private boolean isConnectedOnce = false;
     private static final String TAG = "BluetoothService";
     private final IBinder binder = new LocalBinder();
     private AcceptThread acceptThread;
@@ -36,7 +38,7 @@ public class BluetoothService extends Service {
         handler = new Handler();
         BluetoothManager mgr = getSystemService(BluetoothManager.class);
         BluetoothAdapter adapter = mgr.getAdapter();
-        if (adapter != null) {
+        if (adapter != null && !isConnectedOnce) {
             // Démarre l'AcceptThread et redirige la socket vers onDeviceConnected()
             acceptThread = new AcceptThread(
                     adapter,
@@ -49,6 +51,7 @@ public class BluetoothService extends Service {
                     BluetoothService.this.onDeviceConnected(socket);
                 }
             };
+
             acceptThread.start();
             Log.d(TAG, "BluetoothService onCreate: acceptThread started");
         } else {
